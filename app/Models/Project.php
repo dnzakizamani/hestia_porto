@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Project extends Model
 {
@@ -34,7 +35,15 @@ class Project extends Model
         return $this->belongsTo(Category::class);
     }
 
-    
+    protected $appends = ['cover_image_url'];
 
-
+    // Accessor for cover_image to ensure proper URL formatting
+    public function getCoverImageUrlAttribute()
+    {
+        if ($this->cover_image) {
+            // Return a relative path that works with the frontend
+            return '/storage/' . $this->cover_image;
+        }
+        return null;
+    }
 }

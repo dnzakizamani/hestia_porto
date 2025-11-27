@@ -2,6 +2,8 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePage } from "@inertiajs/react";
 import { createPortal } from "react-dom";
+import Masonry from 'masonry-layout';
+import imagesLoaded from 'imagesloaded';
 
 /* ---------- routing/hash helper ---------- */
 function useRoute(projects) {
@@ -131,11 +133,15 @@ function Sidebar({ onNav, current }) {
       style={{ width: "250px" }}
     >
       <div
-        style={{ marginBottom: "30px", fontSize: "30px" }}
+        style={{ marginBottom: "30px",marginLeft:"20px", fontSize: "30px" }}
         className="font-bold tracking-tight"
       >
         {/* FELICITA<br />SALA  */}
-        <img src={`/storage/projects/website-name.jpg`}  loading="lazy" />
+        <img
+          src={`/storage/projects/website-name.jpg`}
+          loading="lazy"
+          className="w-auto h-18 object-contain"
+        />
       </div>
   
       <nav
@@ -150,105 +156,63 @@ function Sidebar({ onNav, current }) {
   );
 }
 
-/* ------------------------- Masonry Grid (JS-driven) ------------------------- */
+/* ------------------------- Masonry Grid (Masonry Library) ------------------------- */
 function GridMasonry({ projects, onOpen }) {
   const gridRef = useRef(null);
+  const masonryInstance = useRef(null);
 
-  const resizeAllGridItems = () => {
-    const grid = gridRef.current;
-    if (!grid) return;
-    const computed = window.getComputedStyle(grid);
-    const rowHeight = parseInt(computed.getPropertyValue("grid-auto-rows")) || 8;
-    const rowGap = parseInt(computed.getPropertyValue("gap")) || parseInt(computed.getPropertyValue("grid-row-gap")) || 24;
+  useEffect(() => {
+    if (!gridRef.current || !projects?.length) return;
 
-    const items = Array.from(grid.children);
-    items.forEach((item) => {
-      const img = item.querySelector("img");
-      if (!img) return;
-      const titleEl = item.querySelector("h3");
-      const titleH = titleEl ? titleEl.getBoundingClientRect().height + 8 : 0;
-      const itemHeight = img.getBoundingClientRect().height + titleH;
-      const span = Math.ceil((itemHeight + rowGap) / (rowHeight + 0.0001));
-      item.style.gridRowEnd = `span ${span}`;
-    });
-  };
+    const container = gridRef.current;
 
-  const waitImagesLoaded = () => {
-    const grid = gridRef.current;
-    if (!grid) return Promise.resolve();
-    const imgs = Array.from(grid.querySelectorAll("img"));
-    const promises = imgs.map((img) => {
-      if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
-      return new Promise((res) => {
-        img.addEventListener("load", res, { once: true });
-        img.addEventListener("error", res, { once: true });
+    // Wait for all images to load before initializing Masonry
+    imagesLoaded(container, () => {
+      // Destroy existing instance if it exists
+      if (masonryInstance.current) {
+        masonryInstance.current.destroy();
+      }
+
+      // Initialize Masonry with options
+      masonryInstance.current = new Masonry(container, {
+        itemSelector: '.masonry-item',
+        columnWidth: '.grid-sizer', // Use grid sizer for responsive column width
+        percentPosition: true,
+        horizontalOrder: true,
+        gutter: 0 // We handle all spacing in CSS
       });
+
+      // Layout after initialization
+      masonryInstance.current.layout();
     });
-    return Promise.all(promises);
-  };
 
-  useEffect(() => {
-    let mounted = true;
-    const setup = async () => {
-      await waitImagesLoaded();
-      if (!mounted) return;
-      resizeAllGridItems();
-    };
-    setup();
-
-    let t;
-    const onResize = () => {
-      clearTimeout(t);
-      t = setTimeout(() => {
-        resizeAllGridItems();
-      }, 120);
-    };
-    window.addEventListener("resize", onResize);
-
-    const ro = new MutationObserver(() => {
-      waitImagesLoaded().then(resizeAllGridItems);
-    });
-    if (gridRef.current) ro.observe(gridRef.current, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
-
+    // Clean up on unmount or when projects change
     return () => {
-      mounted = false;
-      clearTimeout(t);
-      window.removeEventListener("resize", onResize);
-      ro.disconnect();
+      if (masonryInstance.current) {
+        masonryInstance.current.destroy();
+        masonryInstance.current = null;
+      }
     };
-  }, [projects]);
-
-  useEffect(() => {
-    waitImagesLoaded().then(resizeAllGridItems);
   }, [projects]);
 
   return (
     <>
       <style>{`
         .masonry-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          grid-auto-rows: 8px;
-          gap: 1px;
-          align-items: start;
-          padding-top: 12px;
-          padding-right: 0;
+          position: relative;
         }
 
-        @media (min-width: 640px) {
-          .masonry-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0px 24px;
-            padding-right: 18px;
-          }
+        .grid-sizer,
+        .masonry-item {
+          width: calc(50% - 4px); /* 2 columns with horizontal gap of 8px total */
         }
 
-        @media (min-width: 1024px) {
-          .masonry-grid {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0px 24px;
-            padding-right: 18px;
-          }
+        .masonry-item {
+          position: absolute; /* Masonry will position these */
+          left: 0;
+          top: 0;
+          padding-right: 8px; /* Horizontal gap */
+          margin-bottom: 8px; /* Vertical gap - matching horizontal */
         }
 
         .masonry-item img {
@@ -263,9 +227,21 @@ function GridMasonry({ projects, onOpen }) {
           font-size: 13px;
           line-height: 1.1;
         }
+
+        @media (min-width: 1024px) {
+          .grid-sizer,
+          .masonry-item {
+            width: calc(33.333% - 8px); /* 3 columns with horizontal gap of 12px total */
+          }
+          .masonry-item {
+            padding-right: 12px; /* Desktop horizontal gap */
+            margin-bottom: 12px; /* Desktop vertical gap - matching horizontal */
+          }
+        }
       `}</style>
 
       <div ref={gridRef} className="masonry-grid">
+        <div className="grid-sizer"></div> {/* Helper element for column width */}
         {projects.map((p) => (
           <motion.article
             key={p.id}
@@ -274,9 +250,9 @@ function GridMasonry({ projects, onOpen }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
             onClick={() => onOpen(p)}
-            style={{ cursor: "pointer", breakInside: "avoid", WebkitColumnBreakInside: "avoid" }}
+            style={{ cursor: "pointer" }}
           >
-            <img src={`/storage/${p.cover_image}`} alt={p.title} loading="lazy" />
+            <img src={p.cover_image_url || `/storage/${p.cover_image}`} alt={p.title} loading="lazy" />
           </motion.article>
         ))}
       </div>
@@ -337,7 +313,7 @@ function ProjectDetail({ project, onBack }) {
       <div className="mb-8">
         <div className="relative overflow-hidden rounded-2xl shadow-2xl">
           <img
-            src={`/storage/${project.cover_image}`}
+            src={project.cover_image_url || `/storage/${project.cover_image}`}
             alt={project.title}
             className="w-full h-auto"
           />
@@ -367,7 +343,7 @@ function ProjectDetail({ project, onBack }) {
               >
                 <div className="relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300">
                   <img
-                    src={`/storage/${art.image_path}`}
+                    src={art.image_url || `/storage/${art.image_path}`}
                     alt={art.title}
                     className="w-full h-64 object-cover transform group-hover:scale-110 transition-transform duration-500"
                   />
@@ -404,58 +380,155 @@ function ProjectDetail({ project, onBack }) {
 
 
 function About() {
+  const { activeArtist } = usePage().props;
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-12 md:py-20 grid md:grid-cols-2 gap-8 items-center">
-      
       {/* Gambar atau Avatar */}
       <div className="flex justify-center md:justify-start">
-        <img 
-          src="/storage/projects/single.jpg"
-          alt="My Avatar"
-          className="w-48 h-48 md:w-56 md:h-56 rounded-xl object-cover shadow-lg hover:scale-105 transition-transform duration-300"
-        />
+        {activeArtist?.profile_picture ? (
+          <div className="w-32 h-32 md:w-40 md:h-40 rounded-xl overflow-hidden shadow-lg hover:scale-105 transition-transform duration-300">
+            <img
+              src={`/storage/${activeArtist.profile_picture}`}
+              alt={activeArtist.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ) : (
+          <div className="w-32 h-32 md:w-40 md:h-40 rounded-xl bg-gray-200 flex items-center justify-center">
+            <span className="text-gray-500">No Image</span>
+          </div>
+        )}
       </div>
 
       {/* Teks */}
-      <div className="space-y-4 mt-6 mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-          About Me
+      <div className="space-y-6 mt-6 mb-6">
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight">
+          {activeArtist?.name || "About Me"}
         </h1>
-        <p className="text-gray-700 text-base md:text-lg leading-relaxed">
-        Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
-        <br />
-        <br />
-        Why do we use it?
-        <br />
-        It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).
-        <br />
-        <br />
-
-        Where does it come from?
-        <br />
-        Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.
-        <br />
-        The standard chunk of Lorem Ipsum used since the 1500s is reproduced below for those interested. Sections 1.10.32 and 1.10.33 from "de Finibus Bonorum et Malorum" by Cicero are also reproduced in their exact original form, accompanied by English versions from the 1914 translation by H. Rackham.
-        </p>
+        {activeArtist?.bio && (
+          <p className="text-gray-700 text-lg md:text-xl font-medium leading-relaxed italic border-l-4 border-amber-500 pl-4 py-1">
+            {activeArtist.bio}
+          </p>
+        )}
+        {activeArtist?.about_me && (
+          <div className="text-gray-700 text-base md:text-lg leading-relaxed space-y-3">
+            {activeArtist.about_me
+              .split('\n')
+              .map(paragraph => paragraph.trim())
+              .filter(paragraph => paragraph.length > 0)
+              .map((paragraph, i) => (
+              <p key={i} className="mb-3">
+                {paragraph}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
-
     </div>
   );
 }
 
 
 function Contact() {
+  const { activeArtist } = usePage().props;
+
+  const isEmail = (platform) =>
+    platform?.toLowerCase().includes("email") || platform?.toLowerCase().includes("mail");
+
+  const normalizeLink = (contact) => {
+    if (isEmail(contact.platform)) return `mailto:${contact.value}`;
+    return contact.value.startsWith("http") ? contact.value : `https://${contact.value}`;
+  };
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-[18px] md:text-[22px] leading-snug">Contact</h1>
-      <div className="text-[14px] md:text-[16px] space-y-1">
-        <p>Email: hello@example.com</p>
-        <p>Instagram: @yourhandle</p>
-        <p>Behance / ArtStation: yourpage</p>
+    <div className="max-w-5xl mx-auto space-y-12 py-16">
+      {/* Header */}
+      <div className="text-start max-w-3xl mx-auto space-y-1 mb-4">
+        <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight">
+          Get In Touch
+        </h1>
+        <p className="text-gray-600 text-lg md:text-xl leading-relaxed">
+          Interested in collaborating or just want to say hello? Feel free to reach out through any platform below.
+        </p>
       </div>
+
+      {/* Artist Info */}
+      {activeArtist && (
+        <div className="bg-white rounded-3xl shadow-sm p-8 border border-gray-100 text-center space-y-1 mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mt-2">
+            {activeArtist.name}
+          </h2>
+          <p className="text-gray-700 italic text-lg md:text-xl max-w-3xl mx-auto leading-relaxed mb-2">
+            {activeArtist.bio}
+          </p>
+        </div>
+      )}
+
+      {/* Contact Cards */}
+      {activeArtist?.contacts?.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {activeArtist.contacts.map((contact, index) => (
+            <div
+              key={index}
+              className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col text-center"
+            >
+              <div className="flex flex-col items-center space-y-3 flex-1">
+                {/* Icon */}
+                <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+                  {contact.remix_icon ? (
+                    <i className={`ri-${contact.remix_icon} text-2xl text-amber-600`}></i>
+                  ) : (
+                    <span className="text-amber-600 font-bold text-xl">
+                      {contact.platform?.charAt(0) ?? "?"}
+                    </span>
+                  )}
+                </div>
+
+                {/* Platform Name */}
+                <h3 className="font-semibold text-gray-900 text-lg">
+                  {contact.platform || "Platform"}
+                </h3>
+
+                {/* Value */}
+                <p className="text-gray-700 text-sm break-all">
+                  {contact.value || "No value"}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center space-y-4 py-16">
+          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto">
+            <i className="ri-contacts-book-2-line text-2xl text-gray-500"></i>
+          </div>
+          <h3 className="text-2xl font-semibold text-gray-900">No Contact Information</h3>
+          <p className="text-gray-600 max-w-md mx-auto">
+            Please check back later or try another way to reach out.
+          </p>
+        </div>
+      )}
+
+      {/* CTA Section */}
+      {/* <div className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-3xl p-10 text-center border border-amber-200 space-y-4 shadow-inner mt-4">
+        <h3 className="text-2xl font-bold text-gray-900">Prefer Direct Communication?</h3>
+        <p className="text-gray-700 max-w-2xl mx-auto leading-relaxed">
+          Send an email directly to discuss potential projects, collaborations, or simply to say hello.
+        </p>
+
+        <button
+          onClick={() => (window.location.href = "mailto:hestia@example.com")}
+          className="px-8 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors shadow-lg text-base font-medium"
+        >
+          Send Email
+        </button>
+      </div> */}
     </div>
+
   );
 }
+
 
 /* -------------------------- Main Component -------------------------- */
 export default function CargoStylePortfolio() {
@@ -476,13 +549,12 @@ export default function CargoStylePortfolio() {
         {/* Header Mobile */}
         <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b p-4 flex justify-between items-center shadow-lg z-20">
           {/* <div className="font-bold text-lg">FELICITA SALA</div> */}
-          <img 
-            src={`/storage/projects/website-name.jpg`}  
+          {/* <img
+            src={`/storage/projects/website-name.jpg`}
             alt="Website Logo"
-            loading="lazy" 
-            className="h-auto object-contain" 
-            style={{width:"5rem"}}
-          />
+            loading="lazy"
+            className="w-10 h-10 object-contain"
+          /> */}
           <button
             onClick={() => setIsMobileMenuOpen((p) => !p)}
             className="p-2 relative z-30"
@@ -500,7 +572,7 @@ export default function CargoStylePortfolio() {
         </div>
 
         {/* Dropdown menu – hanya tampil di mobile */}
-        <div className="md:hidden relative">
+        <div className="md:hidden sticky top-0 z-30 bg-white">
           <DropdownMenu
             isOpen={isMobileMenuOpen}
             onNav={(name) => {
@@ -512,7 +584,13 @@ export default function CargoStylePortfolio() {
         </div>
 
         {/* Konten utama */}
-        <main className="pt-20 md:pt-8 max-w-3xl mx-auto p-4">
+        <main className="pt-20 md:pt-8 max-w-5xl mx-auto p-4">
+          <img
+            src={`/storage/projects/website-name.jpg`}
+            alt="Website Logo"
+            loading="lazy"
+            className="w-auto h-16 object-contain md:hidden"
+          />
           <AnimatePresence mode="wait">
             {route.name === "work" && (
               <motion.section key="work" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
