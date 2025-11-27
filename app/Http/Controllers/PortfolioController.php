@@ -37,9 +37,14 @@ class PortfolioController extends Controller
             }
         }
 
+        // Get website logo setting
+        $websiteLogo = \App\Models\Settings::getByKey('website_logo');
+
         return Inertia::render('CargoStylePortfolio', [
             'projects' => Project::with(['category', 'artworks'])->get()->toArray(),
             'activeArtist' => $sanitizedArtist,
+            'websiteLogo' => $websiteLogo ? $websiteLogo->logo_url : null,
+            'faviconUrl' => $websiteLogo ? $websiteLogo->logo_url : null,
         ]);
     }
 }

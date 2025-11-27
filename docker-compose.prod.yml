@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hestia_porto_app:latest
+    container_name: hestia_porto_app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./storage:/var/www/storage
+      - ./public:/var/www/public
+      - ./logs:/var/log/php
+      - ./.env:/var/www/.env
+    environment:
+      - APP_ENV=production
+      - CACHE_DRIVER=redis
+      - SESSION_DRIVER=redis
+      - QUEUE_CONNECTION=redis
+    networks:
+      - hestia_porto
+
+  db:
+    image: mysql:8.0
+    container_name: hestia_porto_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-hestia_porto}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-password}
+      MYSQL_USER: ${DB_USERNAME:-user}
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - hestia_porto
+
+  redis:
+    image: redis:alpine
+    container_name: hestia_porto_redis
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    networks:
+      - hestia_porto
+
+networks:
+  hestia_porto:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local
+  redisdata:
+    driver: local

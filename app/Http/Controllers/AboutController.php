@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Artist;
+use App\Models\Settings;
 use Illuminate\Http\Request;
 
 class AboutController extends Controller
@@ -17,6 +18,12 @@ class AboutController extends Controller
             $activeArtist = Artist::first();
         }
 
-        return view('about', compact('activeArtist'));
+        // Get website logo setting for favicon
+        $websiteLogo = Settings::getByKey('website_logo');
+
+        return view('about', [
+            'activeArtist' => $activeArtist,
+            'faviconUrl' => $websiteLogo ? $websiteLogo->logo_url : null
+        ]);
     }
 }

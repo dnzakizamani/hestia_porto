@@ -115,7 +115,7 @@ function DropdownMenu({ isOpen, onNav, current }) {
 
 
 /* ---------------------------- Sidebar ---------------------------- */
-function Sidebar({ onNav, current }) {
+function Sidebar({ onNav, current, websiteLogo }) {
   const LinkBtn = ({ label, target }) => (
     <button
       onClick={() => onNav(target)}
@@ -137,11 +137,16 @@ function Sidebar({ onNav, current }) {
         className="font-bold tracking-tight"
       >
         {/* FELICITA<br />SALA  */}
-        <img
-          src={`/storage/projects/website-name.jpg`}
-          loading="lazy"
-          className="w-auto h-18 object-contain"
-        />
+        {websiteLogo ? (
+          <img
+            src={websiteLogo}
+            loading="lazy"
+            className="w-auto h-18 object-contain"
+            alt="Website Logo"
+          />
+        ) : (
+          <div className="text-lg font-bold text-gray-900">LOGO</div>
+        )}
       </div>
   
       <nav
@@ -532,17 +537,17 @@ function Contact() {
 
 /* -------------------------- Main Component -------------------------- */
 export default function CargoStylePortfolio() {
-  const { projects } = usePage().props;
+  const { projects, websiteLogo } = usePage().props;
   const { route, navigate } = useRoute(projects);
   const data = useMemo(() => projects || [], [projects]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-white text-black relative flex">
-      
+
       {/* Sidebar – hanya tampil di laptop */}
       <div className="hidden md:flex">
-        <Sidebar onNav={navigate} current={route.name} />
+        <Sidebar onNav={navigate} current={route.name} websiteLogo={websiteLogo} />
       </div>
 
       <div className="flex-1">
@@ -585,12 +590,14 @@ export default function CargoStylePortfolio() {
 
         {/* Konten utama */}
         <main className="pt-20 md:pt-8 max-w-5xl mx-auto p-4">
-          <img
-            src={`/storage/projects/website-name.jpg`}
-            alt="Website Logo"
-            loading="lazy"
-            className="w-auto h-16 object-contain md:hidden"
-          />
+          {websiteLogo && (
+            <img
+              src={websiteLogo}
+              alt="Website Logo"
+              loading="lazy"
+              className="w-auto h-16 object-contain mb-6 md:hidden"
+            />
+          )}
           <AnimatePresence mode="wait">
             {route.name === "work" && (
               <motion.section key="work" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

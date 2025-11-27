@@ -1,0 +1,18 @@
+FROM nginx:alpine
+
+# Copy custom nginx configuration
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+
+# Create directory for the app
+RUN mkdir -p /var/www
+
+# Set working directory
+WORKDIR /var/www
+
+# Copy the application code (this will be mounted in production)
+# In production, we'll mount the volume to /var/www
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
