@@ -11,13 +11,14 @@ RUN apt-get update && apt-get install -y \
     unzip \
     nano \
     nodejs \
-    npm
+    npm \
+    libpq-dev
 
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+RUN docker-php-ext-install pdo_pgsql mbstring exif pcntl bcmath gd
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -38,7 +39,7 @@ RUN chmod -R 775 /var/www/storage
 RUN chmod -R 775 /var/www/bootstrap/cache
 
 # Install PHP dependencies
-RUN su www-data -c "composer install --no-dev --optimize-autoloader"
+RUN composer install --no-dev --optimize-autoloader
 
 # Install Node dependencies
 RUN npm install
