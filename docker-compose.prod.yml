@@ -16,41 +16,12 @@ services:
       - ./.env:/var/www/.env
     environment:
       - APP_ENV=production
-      - CACHE_DRIVER=redis
-      - SESSION_DRIVER=redis
-      - QUEUE_CONNECTION=redis
-    networks:
-      - hestia_porto
-
-  db:
-    image: mysql:8.0
-    container_name: hestia_porto_db
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-hestia_porto}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-password}
-      MYSQL_USER: ${DB_USERNAME:-user}
-    volumes:
-      - dbdata:/var/lib/mysql
-    networks:
-      - hestia_porto
-
-  redis:
-    image: redis:alpine
-    container_name: hestia_porto_redis
-    restart: unless-stopped
-    volumes:
-      - redisdata:/data
+      - CACHE_DRIVER=file
+      - SESSION_DRIVER=file
+      - QUEUE_CONNECTION=database
     networks:
       - hestia_porto
 
 networks:
   hestia_porto:
     driver: bridge
-
-volumes:
-  dbdata:
-    driver: local
-  redisdata:
-    driver: local
